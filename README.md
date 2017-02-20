@@ -1,6 +1,6 @@
 ### 关于 Shadow Gits
 
-shadow-gits 为 [Github API V3](https://developer.github.com/v3/) 与 [shadow-server](https://github/rewgt/shadow-widget) 封装一套通用的，用于读写指定目录与文件的 API。
+shadow-gits 为 [Github API V3](https://developer.github.com/v3/) 与 [shadow-server](https://github.com/rewgt/shadow-widget) 封装一套通用的，用于读写指定目录与文件的 API。
 
 shadow-gits 让一个托管在 github.com 上的 repository，能在线读取指定分支（比如 gh-pages）下最新目录及文件内容，同时还支持在该分支下创建新文件，以及修改已有文件的内容。因为 `<user>` 用户 `gh-pages` 分支的 `<repo>` 库，github 提供 Web 文件服务，读取方式为 `https://<user>.github.io/<repo>/...`。
 
@@ -43,7 +43,8 @@ shadow-gits 按 BSD 协议开源。
 
 ``` html
 <script>
-if (!window.W) { window.W = new Array(); W.$modules = [];} W.$modules.push( function(require,module,exports) {
+if (!window.W) { window.W = new Array(); W.$modules = [];}
+W.$modules.push( function(require,module,exports) {
 
 var React = require('react');
 var ReactDOM = require('react-dom');
