@@ -31,12 +31,12 @@ shadow-gits 按 BSD 协议开源。
 第 1 步，在当前开发的 html 文件中添加 shadow-widget 与 shadow-gits 库引用，比如：
 
 ``` html
-<link rel="stylesheet" shared="true" href="lib/base.css" />
+<link rel="stylesheet" shared="true" href="lib/sw_base.css" />
 
 <script src="lib/react.min.js"></script>
 <script src="lib/react-dom.min.js"></script>
-<script src="lib/shadow-widget.min.js"></script>
 <script src="lib/shadow-gits.min.js"></script>
+<script src="lib/shadow-widget.min.js"></script>
 ```
 
 第 2 步，编写初始化代码，获得 `Git` 模块，比如：
@@ -63,7 +63,7 @@ var Git = utils.gitOf('api.github.com','https');
 第 3 步，配置与使用 `Git` 模块，比如：
 
 ``` js
-Git.siteAuth = '<authorization_token>';
+Git.siteAuth = 'authorization_code';  // Basic or OAuth authorization
 
 var userObj = new Git.User('userName');    // such as 'rewgt'
 var braObj = new Git.Branch(userObj,'shadow-gits','gh-pages');
@@ -227,9 +227,9 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   });
 ```
 
-4.7）`Dir.newFile(sFile,sRawContent,callback)`
+4.7）`Dir.newFile(sFile,sRawContent,callback,sContent)`
 
-在当前分支、当前目录下创建一个文件，参数 `sFile` 是待创建的文件名，`sRawContent` 是文件内容，`utf-8` 字串格式。例如：
+在当前分支、当前目录下创建一个文件，参数 `sFile` 是待创建的文件名，`sRawContent` 是文件内容，`utf-8` 字串格式。`sContent` 是经过 Base64 编码的文件内容，可以缺省。例如：
 
 ``` js
   dirObj.newFile('test2.txt','example', function(err,bOut) {
@@ -242,11 +242,13 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   });
 ```
 
+参数 `sContent` 通常缺省，当 `sRawContent` 参数为 `undefined` 时，系统将以 `sContent` 值为准存盘，否则以 `sRawContent` 为准。这两个参数的转换关系是 `sContent = utils.Base64.encode(sRawContent)`。
+
 说明：成功创建的 `fileObj` 会自动登记到当前 `dirObj.contents` 中。
 
-4.8）`Dir.putFile(sFile,sRawContent,callback,oldSha)`
+4.8）`Dir.putFile(sFile,sRawContent,callback,oldSha,sContent)`
 
-保存新的文件内容 `sRawContent` 到当前分支、当前目录下的 `sFile` 文件中。`oldSha` 指明旧文件的 sha 值，如果该参数缺省，表示自从 `Dir.contents` 中名为 `sFile` 的文件对象中找出（即取 `File.sha` 值）。例如：
+保存新的文件内容 `sRawContent` 到当前分支、当前目录下的 `sFile` 文件中。`oldSha` 指明旧文件的 sha 值，如果该参数缺省（或传 `undefined` 值），表示自从 `Dir.contents` 中名为 `sFile` 的文件对象中找出（即取 `File.sha` 值）。`sContent` 是经过 Base64 编码的文件内容，可以缺省。例如：
 
 ``` js
   dirObj.putFile('test2.txt','changed text', function(err,bOut) {
@@ -258,6 +260,8 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
     console.log(fileObj,commitObj);
   });
 ```
+
+参数 `sContent` 通常缺省，当 `sRawContent` 参数为 `undefined` 时，系统将以 `sContent` 值为准存盘，否则以 `sRawContent` 为准。这两个参数的转换关系是 `sContent = utils.Base64.encode(sRawContent)`。
 
 说明：成功保存后的 `fileObj` 会替换当前 `dirObj.contents` 中的原文件对象。对于 localhost，文件的校验码 sha 并非必需，但对于 api.github.com，存盘时必须给出正确的原有 sha 值。
 
@@ -300,7 +304,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 4.12）`Dir.getDir(sName)`
 
-从当前 `Dir.contents` 列表中找出名为 `sName` 的子目录对象。例如：
+从当前 `Dir.contents` 列表中找出名为 `sName` 的子目录对象，如果没找到返回 `undefined`。例如：
 
 ``` js
   var dirObj = dirObj.getDir('lib');
@@ -310,7 +314,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 4.13）`Dir.getFile(sName)`
 
-从当前 `Dir.contents` 列表中找出名为 `sName` 的文件对象。例如：
+从当前 `Dir.contents` 列表中找出名为 `sName` 的文件对象，如果没找到返回 `undefined`。例如：
 
 ``` js
   var fileObj = dirObj.getFile('README.md');
@@ -373,11 +377,12 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 读取当前文件内容，例如：
 
 ``` js
-  fileObj.readContent( function(err,fileObj) {
+  fileObj.readContent( function(err,content) {
     if (err) {
       console.log(err);
       return;
     }
+    console.log(content);
     console.log(fileObj.content, fileObj.size, fileObj.sha);
   });
 ```
@@ -389,12 +394,13 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 读取当前文件内容，例如：
 
 ``` js
-  fileObj.readRaw( function(err,fileObj) {
+  fileObj.readRaw( function(err,rawContent) {
     if (err) {
       console.log(err);
       return;
     }
-    console.log(fileObj.rawContent);
+    console.log(rawContent);
+    console.log(fileObj.rawContent, fileObj.size, fileObj.sha);
   });
 ```
 
@@ -404,9 +410,9 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   fileObj.rawContent = utils.Base64.decode(fileObj.content);
 ```
 
-5.10）`File.putContent(sRaw,callback)`
+5.10）`File.putContent(sRawContent,callback,sContent)`
 
-更新文件内容，`sRaw` 是 `utf-8` 格式的内容字串。例如：
+更新文件内容，`sRawContent` 是 `utf-8` 格式的内容字串。`sContent` 是经过 Base64 编码的文件内容，可以缺省。例如：
 
 ``` js
   fileObj.putContent('changed text', function(err,bOut) {
@@ -418,6 +424,8 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
     console.log(fileObj, commitObj);
   });
 ```
+
+参数 `sContent` 通常缺省，当 `sRawContent` 参数为 `undefined` 时，系统将以 `sContent` 值为准存盘，否则以 `sRawContent` 为准。这两个参数的转换关系是 `sContent = utils.Base64.encode(sRawContent)`。
 
 说明：对于 api.github.com，更新文件内容时，`fileObj.sha` 须已取得（通过 `dirObj.fetchContents()` 或 `fileObj.fetchContent()`）。
 

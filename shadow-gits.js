@@ -104,14 +104,14 @@ function fetchFileContent_(where,self,callback) {
       if (callback) callback(null,self);
     },
     error: function(xhr,statusText) {
-      if (callback) callback(new Error(statusText),xhr);
+      if (callback) callback(new Error(statusText),self);
     },
   };
   if (where.siteAuth) reqest.headers = {Authorization:where.siteAuth};
   utils.ajax(reqest);
 }
 
-function putFileContent_(where,sFile,sRaw,oldSha,callback,fileObj,dirObj) {
+function putFileContent_(where,sFile,sRaw,oldSha,callback,fileObj,dirObj,sCnt) {
   var sFilePath,sBranch,sRepo,ghUser, sNowDate = msgOfToday_();
   if (dirObj) {
     sFilePath = dirObj.path;
@@ -128,7 +128,10 @@ function putFileContent_(where,sFile,sRaw,oldSha,callback,fileObj,dirObj) {
   }
   else return;  // fatal error, ignore
   
-  var dData = {path:sFilePath, message:sNowDate, content:Base64.encode(sRaw), branch:sBranch};
+  var contentIn = sRaw === undefined? sCnt: Base64.encode(sRaw);
+  if (contentIn === undefined) return;  // fatal error, ignore
+  
+  var dData = {path:sFilePath, message:sNowDate, content:contentIn, branch:sBranch};
   if (oldSha) dData.sha = oldSha;  // !oldSha means create new (for localhost just overwrite)
   
   var reqest = { type:'PUT', dataType:'json',
@@ -138,6 +141,8 @@ function putFileContent_(where,sFile,sRaw,oldSha,callback,fileObj,dirObj) {
       var fileObj2 = null, commitObj = null;
       if (res.content && res.content.type == 'file') {
         fileObj2 = new where.File(res.content,ghUser,sRepo,sBranch);
+        fileObj2.content = contentIn;
+        fileObj2.rawContent = sRaw;
         if (dirObj) {
           var iPos = dirObj.contents.findIndex( function(item) {
             return item.name == sFile && item.type == 'file';
@@ -160,10 +165,19 @@ function putFileContent_(where,sFile,sRaw,oldSha,callback,fileObj,dirObj) {
           if (fileObj2.url) commitObj.file_url = fileObj2.url;
         }
       }
-      if (callback) callback(null,[fileObj2,commitObj]);
+      if (callback) {
+        if (!fileObj2) {
+          if (dirObj)
+            fileObj2 = dirObj.fileOf(sFile);
+          else fileObj2 = fileObj;
+          fileObj2.content = contentIn;
+          fileObj2.rawContent = sRaw;
+        }
+        callback(null,[fileObj2,commitObj]);
+      }
     },
     error: function(xhr,statusText) {
-      if (callback) callback(new Error(statusText),xhr);
+      if (callback) callback(new Error(statusText),[null,null]);
     },
   };
   if (where.siteAuth) reqest.headers = {Authorization:where.siteAuth};
@@ -192,22 +206,28 @@ function deleteFile_(where,sFile,oldSha,callback,fileObj,dirObj) {
     url: getServerUrl_(where,'/repos/' + ghUser.login + '/' + sRepo + '/contents/' + sFilePath),
     data: {path:sFilePath, message:sNowDate, branch:sBranch, sha:oldSha},
     success: function(res,statusText,xhr) {
+      var fileObj2;
       if (dirObj) {
         var iPos = dirObj.contents.findIndex( function(item) {
           return item.name == sFile && item.type == 'file';
         });
-        if (iPos >= 0) dirObj.contents.splice(iPos,1);
+        if (iPos >= 0) {
+          fileObj2 = dirObj.contents[iPos];
+          dirObj.contents.splice(iPos,1);
+        }
+        else fileObj2 = dirObj.fileOf(sFile);
       }
+      else fileObj2 = fileObj;
       
       if (callback) {
         var commitObj = null;
         if (res.commit && where.Commit) // for localhost res.commit should be undefined
           commitObj = new where.Commit(res.commit,ghUser,sRepo);
-        callback(null,[null,commitObj]);
+        callback(null,[fileObj2,commitObj]);
       }
     },
     error: function(xhr,statusText) {
-      if (callback) callback(new Error(statusText),xhr);
+      if (callback) callback(new Error(statusText),[null,null]);
     },
   };
   if (where.siteAuth) reqest.headers = {Authorization:where.siteAuth};
@@ -259,7 +279,7 @@ function fetchDirContents_(where,self,callback) {
       if (callback) callback(null,self);
     },
     error: function(xhr,statusText) {
-      if (callback) callback(new Error(statusText),xhr);
+      if (callback) callback(new Error(statusText),self);
     },
   };
   if (where.siteAuth) reqest.headers = {Authorization:where.siteAuth};
@@ -297,7 +317,7 @@ Git.User = Kind.extend( {
         if (callback) callback(null,self);
       },
       error: function(xhr,statusText) {
-        if (callback) callback(new Error(statusText),xhr);
+        if (callback) callback(new Error(statusText),self);
       },
     };
     if (Git.siteAuth) reqest.headers = {Authorization:Git.siteAuth};
@@ -339,7 +359,7 @@ function fetchCommits_(where,self,sPath,sSince,sUntil,callback) {  // only for G
       if (callback) callback(null,self);
     },
     error: function(xhr,statusText) {
-      if (callback) callback(new Error(statusText),xhr);
+      if (callback) callback(new Error(statusText),self);
     },
   };
   if (where.siteAuth) reqest.headers = {Authorization:where.siteAuth};
@@ -368,9 +388,9 @@ Git.File = ItemContent.extend( {
     fetchCommits_(Git,this,this.path,sSince,sUntil,callback);
   },
   
-  putContent: function(sRaw,callback) {
+  putContent: function(sRaw,callback,sCnt) {
     if (!this.sha) throw 'no sha';
-    putFileContent_(Git,this.name,sRaw,this.sha,callback,this,null);
+    putFileContent_(Git,this.name,sRaw,this.sha,callback,this,null,sCnt);
   },
   
   remove: function(callback) {
@@ -404,17 +424,17 @@ Git.Dir = ItemContent.extend( {
     fetchDirContents_(Git,this,callback);
   },
   
-  newFile: function(sFile,sRaw,callback) {  // sFile should not include path segment
-    putFileContent_(Git,sFile,sRaw,'',callback,null,this);
+  newFile: function(sFile,sRaw,callback,sCnt) {  // sFile should not include path segment
+    putFileContent_(Git,sFile,sRaw,'',callback,null,this,sCnt);
   },
   
-  putFile: function(sFile,sRaw,callback,oldSha) {
+  putFile: function(sFile,sRaw,callback,oldSha,sCnt) {
     if (!oldSha) {
       var fileObj = this.getFile(sFile);
       if (fileObj) oldSha = file.sha;
     }
     if (!oldSha) throw 'invalid sha';
-    putFileContent_(Git,sFile,sRaw,oldSha,callback,null,this);
+    putFileContent_(Git,sFile,sRaw,oldSha,callback,null,this,sCnt);
   },
   
   removeFile: function(sFile,callback,oldSha) {
@@ -526,8 +546,8 @@ Local.File = ItemContent.extend( {
     if (callback) callback(null,this);  // not support for localhost
   },
   
-  putContent: function(sRaw,callback) {
-    putFileContent_(Local,this.name,sRaw,'',callback,this,null); // ignore this.sha
+  putContent: function(sRaw,callback,sCnt) {
+    putFileContent_(Local,this.name,sRaw,'',callback,this,null,sCnt); // ignore this.sha
   },
   
   remove: function(callback) {
@@ -560,12 +580,12 @@ Local.Dir = ItemContent.extend( {
     fetchDirContents_(Local,this,callback);
   },
   
-  newFile: function(sFile,sRaw,callback) {  // sFile should not include path segment
-    putFileContent_(Local,sFile,sRaw,'',callback,null,this); // same to this.putFile()
+  newFile: function(sFile,sRaw,callback,sCnt) {  // sFile should not include path segment
+    putFileContent_(Local,sFile,sRaw,'',callback,null,this,sCnt); // same to this.putFile()
   },
   
-  putFile: function(sFile,sRaw,callback) {
-    putFileContent_(Local,sFile,sRaw,'',callback,null,this); // ignore this.sha
+  putFile: function(sFile,sRaw,callback,sCnt) {
+    putFileContent_(Local,sFile,sRaw,'',callback,null,this,sCnt); // ignore this.sha
   },
   
   removeFile: function(sFile,callback) {
