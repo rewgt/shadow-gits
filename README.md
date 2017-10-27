@@ -193,7 +193,97 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   });
 ```
 
-4）`Git.Dir`
+3.8）`Branch.fetchIssues(callback, opt)`
+
+取当前分支所在 repo 库的 issue 列表，仅适用于 api.github.com，localhost 不支持。其中 `opt` 参数可传入 github API V3 要求的额外参数，如 `since, sort, direction, state` 等。例如：
+
+``` js
+  braObj.fetchIssues( function(err,braObj) {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    console.log(braObj.issues);
+  },{since:'2017-01-01T00:00:00Z'});
+```
+
+3.9）`Branch.createIssue(callback, opt)`
+
+在当前分支所在 repo 库创建一个新 issue，仅适用于 api.github.com，localhost 不支持。其中 `opt` 参数可传入 github API V3 要求的额外参数，如 `title,body,milestone,labels,assignees` 等。例如：
+
+``` js
+  braObj.createIssue( function(err,newIssue) {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    console.log(newIssue);
+  },{title:'Issue title',body:'Issue description'});
+```
+
+4）`Git.Issue`
+
+定义 github.com 的 Issue 对象，只适用于 api.github.com，对 localhost 无效，例如：
+
+``` js
+  var issueObj = new Git.Issue(userObj,'shadow-gits',1);
+  issueObj.fetchContents( function(err, issueObj) {
+    // ...
+  });
+```
+
+4.1）`Issue.user`，User 对象
+
+4.2）`Issue.repoName`，repo 库名
+
+4.3）`Issue.number`，当前 issue 的 ID 号，在 github.com 网站提交 issue 时分配的
+
+4.4）`Issue.comments`，当前 issue 的评论列表
+
+4.5）`Issue.fetchContents(callback)`
+
+取得当前 issue （由 `Issue.number` 指示 ID 号）的详细定义。例如：
+
+``` js
+  var issueObj = new Git.Issue(userObj,'shadow-gits',1);
+  issueObj.fetchContents( function(err, issueObj) {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    console.log(issueObj);
+  });
+```
+
+4.6）`Issue.fetchComments(callback)`
+
+取得当前 issue 的评论列表。例如：
+
+``` js
+  issueObj.fetchComments( function(err, comments) {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    console.log(comments);
+  });
+```
+
+4.7）`Issue.fetchEvents(callback)`
+
+取得当前 issue 的事件列表。例如：
+
+``` js
+  issueObj.fetchEvents( function(err, events) {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    console.log(events);
+  });
+```
+
+5）`Git.Dir`
 
 定义目录对象，同时适用于 api.github.com 与 localhost，例如：
 
@@ -203,17 +293,17 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   // var dirObj = new Git.Dir({path:'lib'},userObj,'shadow-gits','gh-pages');  // just same
 ```
 
-4.1）`Dir.user`，User 对象
+5.1）`Dir.user`，User 对象
 
-4.2）`Dir.repoName`，repo 库名
+5.2）`Dir.repoName`，repo 库名
 
-4.3）`Dir.branchName`，分支名
+5.3）`Dir.branchName`，分支名
 
-4.4）`Dir.path`，本目录的路径名
+5.4）`Dir.path`，本目录的路径名
 
-4.5）`Dir.contents`，本目录下的文件或子目录列表，需调用 `Dir.fetchContents()` 获得
+5.5）`Dir.contents`，本目录下的文件或子目录列表，需调用 `Dir.fetchContents()` 获得
 
-4.6）`Dir.fetchContents(callback)`
+5.6）`Dir.fetchContents(callback)`
 
 取当前分支（Dir.branchName）当前目录（Dir.path）下的文件或子目录列表，例如：
 
@@ -227,7 +317,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   });
 ```
 
-4.7）`Dir.newFile(sFile,sRawContent,callback,sContent)`
+5.7）`Dir.newFile(sFile,sRawContent,callback,sContent)`
 
 在当前分支、当前目录下创建一个文件，参数 `sFile` 是待创建的文件名，`sRawContent` 是文件内容，`utf-8` 字串格式。`sContent` 是经过 Base64 编码的文件内容，可以缺省。例如：
 
@@ -246,7 +336,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：成功创建的 `fileObj` 会自动登记到当前 `dirObj.contents` 中。
 
-4.8）`Dir.putFile(sFile,sRawContent,callback,oldSha,sContent)`
+5.8）`Dir.putFile(sFile,sRawContent,callback,oldSha,sContent)`
 
 保存新的文件内容 `sRawContent` 到当前分支、当前目录下的 `sFile` 文件中。`oldSha` 指明旧文件的 sha 值，如果该参数缺省（或传 `undefined` 值），表示自从 `Dir.contents` 中名为 `sFile` 的文件对象中找出（即取 `File.sha` 值）。`sContent` 是经过 Base64 编码的文件内容，可以缺省。例如：
 
@@ -265,7 +355,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：成功保存后的 `fileObj` 会替换当前 `dirObj.contents` 中的原文件对象。对于 localhost，文件的校验码 sha 并非必需，但对于 api.github.com，存盘时必须给出正确的原有 sha 值。
 
-4.9）`Dir.removeFile(sFile,callback,oldSha)`
+5.9）`Dir.removeFile(sFile,callback,oldSha)`
 
 删除当前分支、当前目录下的 `sFile` 文件，`oldSha` 指明旧文件的 sha 值，如果该参数缺省，表示自从 `Dir.contents` 中名为 `sFile` 的文件对象中找出（即取 `File.sha` 值）。例如：
 
@@ -282,7 +372,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：成功删除后的 `fileObj` 会从当前 `dirObj.contents` 列表中移除。对于 localhost，文件的校验码 sha 并非必需，但对于 api.github.com，删文件时必须给出正确原有 sha 值。
 
-4.10）`Dir.dirOf(sPath)`
+5.10）`Dir.dirOf(sPath)`
 
 获得 `Git.Dir` 对象，参数 `sPath` 为相对路径，自动串接到当前 `Dir.path` 之后，例如：
 
@@ -292,7 +382,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   var dirObj2 = dirObj.dirOf('lib');
 ```
 
-4.11）`Dir.fileOf(sPath)`
+5.11）`Dir.fileOf(sPath)`
 
 获得 `Git.File` 对象，参数 `sPath` 为相对路径，自动串接到当前 `Dir.path` 之后，例如：
 
@@ -302,7 +392,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   var fileObj = dirObj.fileOf('base.css');  // get 'lib/base.css'
 ```
 
-4.12）`Dir.getDir(sName)`
+5.12）`Dir.getDir(sName)`
 
 从当前 `Dir.contents` 列表中找出名为 `sName` 的子目录对象，如果没找到返回 `undefined`。例如：
 
@@ -312,7 +402,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：调用 `Dir.getDir()` 之前应先调用 `Dir.fetchContents()`，否则 `Dir.contents` 列表是空的。
 
-4.13）`Dir.getFile(sName)`
+5.13）`Dir.getFile(sName)`
 
 从当前 `Dir.contents` 列表中找出名为 `sName` 的文件对象，如果没找到返回 `undefined`。例如：
 
@@ -322,7 +412,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：调用 `Dir.getFile()` 之前应先调用 `Dir.fetchContents()`，否则 `Dir.contents` 列表是空的。
 
-5）`Git.File`
+6）`Git.File`
 
 定义文件对象，同时适用于 api.github.com 与 localhost，例如：
 
@@ -332,17 +422,17 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   // var fileObj = new Git.File({path:'lib/base.css'},userObj,'shadow-gits','gh-pages');
 ```
 
-5.1）`File.user`，User 对象
+6.1）`File.user`，User 对象
 
-5.2）`File.repoName`，repo 库名
+6.2）`File.repoName`，repo 库名
 
-5.3）`File.branchName`，分支名
+6.3）`File.branchName`，分支名
 
-5.4）`File.path`，本文件的路径名
+6.4）`File.path`，本文件的路径名
 
-5.5）`File.name`，文件名（不带路径）
+6.5）`File.name`，文件名（不带路径）
 
-5.6）`File.fetchContent(callback)`
+6.6）`File.fetchContent(callback)`
 
 读取当前文件内容，例如：
 
@@ -358,7 +448,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：每次调用本函数，都向服务侧发送请求，返回内容以 Base64 编码格式在 `fileObj.content` 记录。用户可以调用 `utils.Base64.decode(fileObj.content)` 获得解码内容，或者通过调用 `File.readRaw()` 获得解码后内容。
 
-5.7）`File.fetchCommits(callback,sSince,sUntil)`
+6.7）`File.fetchCommits(callback,sSince,sUntil)`
 
 取当前文件的 Git.Commit 对象列表，仅适用于 api.github.com，localhost 不支持，参数 `sSince` 与 `sUntil` 用来指示查询的起止时间范围，格式为 `'YYYY-MM-DDTHH:MM:SSZ'`，这两者可以缺省，缺省时表示取全部范围，例如：
 
@@ -372,7 +462,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   });
 ```
 
-5.8）`File.readContent(callback)`
+6.8）`File.readContent(callback)`
 
 读取当前文件内容，例如：
 
@@ -389,7 +479,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：本函数与 `File.fetchContent()` 的区别是：每次调用 `fetchContent()` 都会向服务侧发送更新请求，而调用 `readContent()` 只在当前 `File.content` 未定义时才向服务侧发送一次请求，其后再次调用都将重用已读取的文件内容。
 
-5.9）`File.readRaw(callback)`
+6.9）`File.readRaw(callback)`
 
 读取当前文件内容，例如：
 
@@ -410,7 +500,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
   fileObj.rawContent = utils.Base64.decode(fileObj.content);
 ```
 
-5.10）`File.putContent(sRawContent,callback,sContent)`
+6.10）`File.putContent(sRawContent,callback,sContent)`
 
 更新文件内容，`sRawContent` 是 `utf-8` 格式的内容字串。`sContent` 是经过 Base64 编码的文件内容，可以缺省。例如：
 
@@ -429,7 +519,7 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：对于 api.github.com，更新文件内容时，`fileObj.sha` 须已取得（通过 `dirObj.fetchContents()` 或 `fileObj.fetchContent()`）。
 
-5.11）`File.remove(callback)`
+6.11）`File.remove(callback)`
 
 删除文件内容。例如：
 
@@ -446,12 +536,12 @@ OAuth 是 github 的 OAuth2 认证，它的 `<ACCESS_TOKEN>` 由经授权的应�
 
 说明：对于 api.github.com，删除文件时，`fileObj.sha` 须已取得（通过 `dirObj.fetchContents()` 或 `fileObj.fetchContent()`）。
 
-6）`Git.Commit`
+7）`Git.Commit`
 
 定义提交的 Commit 对象，仅适用于 api.github.com，可用 `Brach.fetchCommits()` 取得当前分支的 Commit 对象列表，用 `File.fetchCommits()` 取得指定文件当前分支的 Commit 对象列表。
 
-6.1）`Commit.user`，User 对象
+7.1）`Commit.user`，User 对象
 
-6.2）`Commit.repoName`，repo 库名
+7.2）`Commit.repoName`，repo 库名
 
 &nbsp;

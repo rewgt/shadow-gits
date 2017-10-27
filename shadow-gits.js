@@ -554,6 +554,125 @@ Git.Branch = Kind.extend( {
   fileOf: function(sPath) {  // aBranch.fileOf(sPath).fetchContent(...)
     return new Git.File({path:sPath},this.user,this.repoName,this.branchName);
   },
+  
+  fetchIssues: function(callback,opt) {
+    var option = Object.assign({_:(new Date()).valueOf()+''},opt);
+    
+    var self = this;
+    var reqest = { type:'GET', dataType:'json',
+      url: getServerUrl_(Git,'/repos/' + this.user.login + '/' + this.repoName + '/issues'),
+      data: option,
+      success: function(res,statusText,xhr) {
+        self.issues = [];
+        if (Array.isArray(res)) {
+          res.forEach( function(issue) {
+            self.issues.push(new Git.Issue(self.user,self.repoName,issue.number,issue));
+          });
+        }
+        if (callback) callback(null,self);
+      },
+      error: function(xhr,statusText) {
+        if (callback) callback(new Error(statusText),self);
+      },
+    };
+    if (Git.siteAuth) reqest.headers = {Authorization:Git.siteAuth};
+    
+    utils.ajax(reqest);
+  },
+  
+  createIssue: function(callback,opt) {
+    var reqest = { type:'POST', dataType:'json',
+      url: getServerUrl_(Git,'/repos/' + this.user.login + '/' + this.repoName + '/issues'),
+      data:opt,  // {title,body,milestone,labels,assignees}
+      success: function(res,statusText,xhr) {
+        if (callback) callback(null,res);
+      },
+      error: function(xhr,statusText) {
+        if (callback) callback(new Error(statusText),null);
+      },
+    };
+    if (Git.siteAuth) reqest.headers = {Authorization:Git.siteAuth};
+    
+    utils.ajax(reqest);
+  },
+},{});
+
+var issue_attrs_ = [ 'id','title','labels','state','locked','comments',
+  'created_at','updated_at','closed_at','body','closed_by',
+];
+
+function assignIssue_(self,res,creator) {
+  if (creator) self.create_by = creator;
+  issue_attrs_.forEach( function(attr) {
+    self[attr] = res[attr];
+  });
+}
+
+Git.Issue = Kind.extend( {
+  constructor : function(ghUser,repoName,number,infos) {
+    if (!repoName)
+      throw 'invalid repository';
+    
+    if (ghUser) this.user = ghUser;
+    if (typeof number == 'number') this.number = number;
+    
+    this.repoName = repoName;
+    this.comments = [];
+    
+    if (infos) assignIssue_(this,infos,infos.user);
+  },
+  
+  fetchContents: function(callback) {
+    var self = this;
+    var reqest = { type:'GET', dataType:'json',
+      url: getServerUrl_(Git,'/repos/' + this.user.login + '/' + this.repoName + '/issues/' + this.number),
+      data: {_:(new Date()).valueOf()+''},
+      success: function(res,statusText,xhr) {
+        assignIssue_(self,res,res.user);
+        if (callback) callback(null,self);
+      },
+      error: function(xhr,statusText) {
+        if (callback) callback(new Error(statusText),self);
+      },
+    };
+    if (Git.siteAuth) reqest.headers = {Authorization:Git.siteAuth};
+    
+    utils.ajax(reqest);
+  },
+  
+  fetchComments: function(callback) {
+    var self = this;
+    var reqest = { type:'GET', dataType:'json',
+      url: getServerUrl_(Git,'/repos/' + this.user.login + '/' + this.repoName + '/issues/' + this.number + '/comments'),
+      data: {_:(new Date()).valueOf()+''},
+      success: function(res,statusText,xhr) {
+        if (callback) callback(null,res);
+      },
+      error: function(xhr,statusText) {
+        if (callback) callback(new Error(statusText),self);
+      },
+    };
+    if (Git.siteAuth) reqest.headers = {Authorization:Git.siteAuth};
+    
+    utils.ajax(reqest);
+  },
+  
+  fetchEvents: function(callback) {
+    var self = this;
+    var reqest = { type:'GET', dataType:'json',
+      url: getServerUrl_(Git,'/repos/' + this.user.login + '/' + this.repoName + '/issues/' + this.number + '/events'),
+      data: {_:(new Date()).valueOf()+''},
+      success: function(res,statusText,xhr) {
+        if (callback) callback(null,res);
+      },
+      error: function(xhr,statusText) {
+        if (callback) callback(new Error(statusText),self);
+      },
+    };
+    if (Git.siteAuth) reqest.headers = {Authorization:Git.siteAuth};
+    
+    utils.ajax(reqest);
+  },
 },{});
 
 //------ Local --------
